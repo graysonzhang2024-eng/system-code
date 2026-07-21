@@ -87,14 +87,30 @@ system-code/
 
 ## 如何在新机器上接管运行
 
+### 快速开始(三步验证框架可用)
+
 ```bash
-git clone <system-code 私有 remote> system-code
+git clone <system-code remote> system-code
 cd system-code
-cp .env.example .env          # 填入真实 vault 路径 / key / token
-python3 -m pytest             # 跑单测,确认框架正常(仅用 fixtures)
+python3 -m pip install -r requirements.txt   # 只需一个依赖 PyYAML
+python3 tests/test_vault.py                  # 跑单测,应显示 OK(仅用 fixtures 假数据)
 ```
 
-真实数据仓单独 clone,通过 `.env` 的 `WORK_VAULT_PATH` / `PERSONAL_VAULT_PATH` 注入。
+三个 `python3 tests/test_*.py` 都显示 `OK`,说明框架零件完好、可移植过来了。
+
+### 当前阶段说明(重要)
+
+本仓目前处于**框架/开发阶段**:数据模型(5 种记录)、校验、状态机、治理钩子均已完成并测试通过,但**尚无「日常使用」的命令行入口**(如 `add task ...`)——那是后续步骤才做的。
+
+打个比方:发动机已造好并通过台架测试,但方向盘和油门踏板还没装。现在能"跑测试证明零件是好的",还不能"开着上路记任务"。
+
+### 接入真实数据(后续步骤)
+
+```bash
+cp .env.example .env          # 填 MACHINE_ID=work|personal 和真实 vault 路径
+```
+
+真实数据仓(work-vault / personal-vault)单独 clone,通过 `.env` 的 `WORK_VAULT_PATH` / `PERSONAL_VAULT_PATH` 注入,无需改代码。
 
 ---
 

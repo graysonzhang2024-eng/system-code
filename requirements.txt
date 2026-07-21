@@ -1,0 +1,12 @@
+# system-code 依赖清单
+#
+# 安装:  python3 -m pip install -r requirements.txt
+#
+# 设计原则:依赖越少越可移植。目前只需一个第三方库。
+
+# PyYAML —— 解析/生成 frontmatter 里的 YAML 结构化字段
+PyYAML>=6.0
+
+# 说明:
+# - 测试用标准库 unittest,无需安装 pytest(装了也兼容)。
+# - 暂无其他运行时依赖;将来接入模型/Notion 时再按需添加。
