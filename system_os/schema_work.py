@@ -28,6 +28,11 @@ PRIORITY = {"P0", "P1", "P2", "P3"}
 CATEGORY = {"事业", "学业", "人际", "生活", "系统"}
 ENERGY = {"low", "medium", "high", "drain"}
 
+# planning 枚举
+PLANNING_TYPE = {"objective", "milestone", "roadmap_item", "theme"}
+PLANNING_HORIZON = {"now", "quarter", "year", "someday"}
+PLANNING_STATUS = {"proposed", "active", "achieved", "dropped", "deferred"}
+
 
 # ============================================================
 # task 校验
@@ -113,5 +118,34 @@ def validate_worklog(meta: dict[str, Any]) -> None:
         raise ValidationError(f"energy_actual 非法:{meta['energy_actual']!r}")
 
     for f in ("artifacts", "rule_candidates", "tags"):
+        if f in meta and not isinstance(meta[f], list):
+            raise ValidationError(f"{f} 必须是列表")
+
+
+# ============================================================
+# planning 校验
+# ============================================================
+def validate_planning(meta: dict[str, Any]) -> None:
+    """校验一条 planning 的 frontmatter。"""
+    validate_frontmatter(meta)
+
+    for f in ("title", "type", "horizon", "category", "status"):
+        if not meta.get(f):
+            raise ValidationError(f"planning 缺少必填字段:{f}")
+
+    if meta["type"] not in PLANNING_TYPE:
+        raise ValidationError(f"type 非法:{meta['type']!r},应为 {sorted(PLANNING_TYPE)}")
+    if meta["horizon"] not in PLANNING_HORIZON:
+        raise ValidationError(
+            f"horizon 非法:{meta['horizon']!r},应为 {sorted(PLANNING_HORIZON)}"
+        )
+    if meta["category"] not in CATEGORY:
+        raise ValidationError(f"category 非法:{meta['category']!r}")
+    if meta["status"] not in PLANNING_STATUS:
+        raise ValidationError(
+            f"status 非法:{meta['status']!r},应为 {sorted(PLANNING_STATUS)}"
+        )
+
+    for f in ("task_refs", "decision_refs", "tags"):
         if f in meta and not isinstance(meta[f], list):
             raise ValidationError(f"{f} 必须是列表")
