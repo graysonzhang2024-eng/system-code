@@ -28,6 +28,12 @@ env/
 .mypy_cache/
 .ruff_cache/
 
+# --- Node / Electron 前端 ---
+node_modules/
+ui/node_modules/
+dist/
+out/
+
 # --- 系统 / 编辑器 ---
 .DS_Store
 .idea/

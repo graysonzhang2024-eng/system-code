@@ -1,0 +1,13 @@
+{
+  "name": "steward-ui",
+  "version": "0.1.0",
+  "description": "桌面浮窗 todolist —— agent 管家系统的界面层",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0"
+  }
+}

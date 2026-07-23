@@ -1,0 +1,247 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 半透明毛玻璃浮窗卡片 */
+.panel {
+  width: 100vw;
+  height: 100vh;
+  background: rgba(28, 28, 32, 0.82);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  color: #e8e8ea;
+  overflow: hidden;
+}
+
+/* 标题栏:整条可拖动 */
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* 按钮不参与拖动 */
+.win-btns {
+  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 6px;
+}
+
+.win-btns button {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8e8ea;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.win-btns button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+#btn-close:hover {
+  background: rgba(255, 80, 80, 0.65);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.placeholder {
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.55;
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* —— 分类 —— */
+.category {
+  margin-bottom: 18px;
+}
+
+.cat-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #8ab4f8;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-count {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.45;
+}
+
+.empty {
+  font-size: 12px;
+  opacity: 0.35;
+  padding-left: 4px;
+}
+
+/* —— 任务 —— */
+.task {
+  margin-bottom: 6px;
+}
+
+.task-row,
+.subtask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 4px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.task-row:hover,
+.subtask-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.task-title {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* 递归子层:每层缩进 + 左侧引导线 */
+.child-list {
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 深层子任务字号略小 */
+.child-list .task-title {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* 完成态:划线 + 变灰 */
+.task-row.done .task-title {
+  text-decoration: line-through;
+  opacity: 0.4;
+}
+
+/* —— 折叠三角 —— */
+.tri {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  opacity: 0.55;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+}
+.tri:hover {
+  opacity: 1;
+}
+.tri.small {
+  width: 12px;
+  font-size: 9px;
+}
+.tri-placeholder {
+  display: inline-block;
+  width: 12px;
+}
+
+/* —— 敏感中性遮罩行:折叠时只一个三角,不暴露任何信息 —— */
+.masked-row {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.masked-row:hover {
+  opacity: 0.75;
+}
+
+/* —— 收回隐身按钮:平时淡,悬停明显 —— */
+.hide-btn {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 12px;
+  opacity: 0.25;
+  cursor: pointer;
+  user-select: none;
+}
+.hide-btn:hover {
+  opacity: 0.8;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+}
+
+/* —— 勾选框 —— */
+.checkbox {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.checkbox.small {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+}
+
+.checkbox:hover {
+  border-color: #8ab4f8;
+}
+
+.checkbox.checked {
+  background: #8ab4f8;
+  border-color: #8ab4f8;
+}
+
+.checkbox.checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  font-size: 11px;
+  color: #1c1c20;
+  font-weight: 700;
+}
+
