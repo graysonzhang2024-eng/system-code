@@ -1,0 +1,478 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 半透明毛玻璃浮窗卡片 */
+.panel {
+  width: 100vw;
+  height: 100vh;
+  background: rgba(28, 28, 32, 0.82);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  color: #e8e8ea;
+  overflow: hidden;
+}
+
+/* 标题栏:整条可拖动 */
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* 按钮不参与拖动 */
+.win-btns {
+  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 6px;
+}
+
+.win-btns button {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e8e8ea;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.win-btns button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+#btn-close:hover {
+  background: rgba(255, 80, 80, 0.65);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+}
+
+.placeholder {
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.55;
+  text-align: center;
+  margin-top: 40px;
+}
+
+/* —— 分类 —— */
+.category {
+  margin-bottom: 18px;
+}
+
+.cat-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #8ab4f8;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cat-count {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.45;
+}
+
+.empty {
+  font-size: 12px;
+  opacity: 0.35;
+  padding-left: 4px;
+}
+
+/* —— 任务 —— */
+.task {
+  margin-bottom: 6px;
+}
+
+.task-row,
+.subtask-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 4px;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.task-row:hover,
+.subtask-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.task-title {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+/* 递归子层:每层缩进 + 左侧引导线 */
+.child-list {
+  margin-left: 10px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* 深层子任务字号略小 */
+.child-list .task-title {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* 完成态:划线 + 变灰 */
+.task-row.done .task-title {
+  text-decoration: line-through;
+  opacity: 0.4;
+}
+
+/* —— 折叠三角 —— */
+.tri {
+  display: inline-block;
+  width: 14px;
+  font-size: 10px;
+  opacity: 0.55;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+}
+.tri:hover {
+  opacity: 1;
+}
+.tri.small {
+  width: 12px;
+  font-size: 9px;
+}
+.tri-placeholder {
+  display: inline-block;
+  width: 12px;
+}
+
+/* —— 敏感中性遮罩行:折叠时只一个三角,不暴露任何信息 —— */
+.masked-row {
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.masked-row:hover {
+  opacity: 0.75;
+}
+
+/* —— 收回隐身按钮:平时淡,悬停明显 —— */
+.hide-btn {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 12px;
+  opacity: 0.25;
+  cursor: pointer;
+  user-select: none;
+}
+.hide-btn:hover {
+  opacity: 0.8;
+}
+.task-row {
+  display: flex;
+  align-items: center;
+}
+
+/* —— 勾选框 —— */
+.checkbox {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  margin-top: 1px;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.checkbox.small {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+}
+
+.checkbox:hover {
+  border-color: #8ab4f8;
+}
+
+.checkbox.checked {
+  background: #8ab4f8;
+  border-color: #8ab4f8;
+}
+
+.checkbox.checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -52%);
+  font-size: 11px;
+  color: #1c1c20;
+  font-weight: 700;
+}
+
+
+/* ===== 优先级 / 进度 / 依赖 标识 ===== */
+
+/* 优先级徽章 */
+.prio {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-right: 6px;
+  flex-shrink: 0;
+  letter-spacing: 0.3px;
+}
+.prio-P0 { background: #ff4d4f; color: #fff; }
+.prio-P1 { background: #fa8c16; color: #fff; }
+.prio-P2 { background: #fadb14; color: #614700; }
+.prio-P3 { background: #d9d9d9; color: #595959; }
+
+/* 进度(子任务比例) */
+.progress {
+  font-size: 10px;
+  color: #8c8c8c;
+  margin-left: 6px;
+  padding: 1px 5px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+
+/* 进行中蓝点 */
+.run-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1890ff;
+  margin-right: 5px;
+  flex-shrink: 0;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* 进行中任务整行淡蓝底 */
+.task-row.in-progress {
+  background: rgba(24, 144, 255, 0.06);
+  border-radius: 4px;
+}
+
+/* ===== 专注区 ===== */
+.focus-zone {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background: rgba(24, 144, 255, 0.08);
+  border: 1px solid rgba(24, 144, 255, 0.25);
+  border-radius: 8px;
+}
+.focus-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1890ff;
+  margin-bottom: 6px;
+}
+.focus-empty {
+  font-size: 11px;
+  color: #999;
+  padding: 2px 0;
+}
+.focus-row { padding-left: 2px; }
+
+/* ===== 今日待办：总待办与专注之间的当日缓存层 ===== */
+.today-zone {
+  margin-bottom: 14px;
+  padding: 8px 10px;
+  background: rgba(250, 173, 20, 0.07);
+  border: 1px solid rgba(250, 173, 20, 0.24);
+  border-radius: 8px;
+}
+.today-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #d89614;
+  margin-bottom: 6px;
+}
+.today-empty {
+  font-size: 11px;
+  color: #999;
+  padding: 2px 0;
+}
+.today-row { padding-left: 2px; }
+.layer-action {
+  margin-left: 6px;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  color: #aaa;
+  flex-shrink: 0;
+  user-select: none;
+}
+.layer-action.promote:hover { color: #1890ff; }
+.layer-action.remove:hover { color: #ff4d4f; }
+
+/* ===== 星标 ===== */
+.star {
+  margin-left: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #ccc;
+  flex-shrink: 0;
+}
+.star.on { color: #faad14; }
+.star:hover { color: #faad14; }
+
+/* ===== 阻塞任务(依赖未满足):变灰排队,仍可勾选 ===== */
+.task-row.blocked-task { opacity: 0.5; }
+.dep-lock {
+  font-size: 10px;
+  margin-left: 6px;
+  color: #999;
+  flex-shrink: 0;
+}
+
+/* ===== 已完成就地折叠 ===== */
+.done-fold {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #999;
+  cursor: pointer;
+  padding: 3px 0;
+  user-select: none;
+}
+.done-fold:hover { color: #666; }
+.done-fold-label { letter-spacing: 0.3px; }
+
+/* 全局昨日完成区(待办最底部) */
+.yesterday-zone {
+  margin-top: 14px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,0.12);
+  opacity: 0.75;
+}
+
+/* 昨日完成区内的分类小标题 */
+.yest-cat {
+  font-size: 11px;
+  font-weight: 600;
+  color: #8ab4f8;
+  opacity: 0.7;
+  margin: 6px 0 2px;
+}
+
+/* 专注区子栏标题 */
+.focus-sub {
+  font-size: 11px;
+  font-weight: 600;
+  color: #999;
+  margin: 6px 0 3px;
+}
+.focus-sub.agent { color: #a67cff; }
+
+/* 开发协作流程状态徽章 */
+.st-badge {
+  font-size: 10px;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+.st-start  { background: #e6f4ff; color: #0958d9; border: 1px solid #91caff; }
+.st-decide { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+.st-review { background: #f9f0ff; color: #722ed1; border: 1px solid #d3adf7; }
+
+/* 标题栏"待处理"红点 */
+.review-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: #ff4d4f; color: #fff;
+  font-size: 9px; min-width: 14px; height: 14px; line-height: 14px;
+  border-radius: 7px; text-align: center; padding: 0 3px;
+}
+
+/* 专注区待决策徽章/行 */
+.st-badge.st-decision { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+.task-row.st-decision-row { background: rgba(212,107,8,0.06); border-radius: 4px; }
+
+/* ===== 同步冲突提醒红条:另一台机改了同一条记录,需人工合并 ===== */
+.sync-banner {
+  padding: 6px 12px;
+  background: rgba(255, 77, 79, 0.18);
+  border-bottom: 1px solid rgba(255, 77, 79, 0.45);
+  color: #ff7875;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* ===== 日常任务:进度打卡 ===== */
+/* 半完成态(如 1/2):框内蓝点 */
+.checkbox.partial::after {
+  content: "";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #1890ff;
+}
+/* 进度小标 1/2 */
+.routine-prog {
+  font-size: 10px;
+  color: #8ab4f8;
+  border: 1px solid rgba(138, 180, 248, 0.4);
+  border-radius: 8px;
+  padding: 0 6px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+/* 精确减一按钮:平时淡,悬停明显 */
+.routine-minus {
+  margin-left: auto;
+  font-size: 13px;
+  opacity: 0.25;
+  cursor: pointer;
+  user-select: none;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+.routine-minus:hover { opacity: 0.85; }

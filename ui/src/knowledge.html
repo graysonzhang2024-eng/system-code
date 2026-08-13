@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>知识库</title>
+  <link rel="stylesheet" href="knowledge.css" />
+</head>
+<body>
+  <div class="panel">
+    <header class="titlebar">
+      <div>
+        <span class="title">📚 知识库</span>
+        <span class="subtitle">学习队列与成长记录</span>
+      </div>
+      <button class="close-btn" id="btn-close" title="关闭">×</button>
+    </header>
+    <main class="content">
+      <section class="stats" id="stats"></section>
+      <nav class="filters" id="filters"></nav>
+      <div id="knowledge-content"><p class="empty">加载中…</p></div>
+    </main>
+  </div>
+  <script src="md.js"></script>
+  <script src="knowledge.js"></script>
+</body>
+</html>

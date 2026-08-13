@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Steward</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="panel">
+      <!-- 标题栏:可拖动区域 + 窗口按钮 -->
+      <header class="titlebar">
+        <span class="title">📋 待办</span>
+        <div class="win-btns">
+          <button id="btn-knowledge" title="知识库">📚</button>
+          <button id="btn-review" title="待你处理" style="position:relative;">✔<span id="review-badge" class="review-badge" style="display:none;"></span></button>
+          <button id="btn-min" title="最小化">—</button>
+          <button id="btn-close" title="关闭">×</button>
+        </div>
+      </header>
+
+      <!-- 同步冲突提醒:另一台机改了同一条记录时出现,平时隐藏 -->
+      <div id="sync-banner" class="sync-banner" style="display:none;"></div>
+
+      <!-- 内容区:下一步填入三层 todo -->
+      <main id="content" class="content">
+        <p class="placeholder">浮窗空壳已就绪 ✅<br />下一步将填入分类 → 任务 → 子任务</p>
+      </main>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>

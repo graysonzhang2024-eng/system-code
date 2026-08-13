@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>验收</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", sans-serif;
+      background: transparent; overflow: hidden; user-select: none;
+    }
+    .panel {
+      width: 100vw; height: 100vh;
+      background: rgba(28, 28, 32, 0.92);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 14px;
+      display: flex; flex-direction: column;
+      color: #e8e8ea; overflow: hidden;
+    }
+    .titlebar {
+      -webkit-app-region: drag;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .title { font-size: 13px; font-weight: 600; }
+    .close-btn {
+      -webkit-app-region: no-drag;
+      width: 22px; height: 22px; border: none; border-radius: 6px;
+      background: rgba(255,255,255,0.08); color: #e8e8ea; cursor: pointer;
+    }
+    .close-btn:hover { background: rgba(255,80,80,0.65); }
+    .content { flex: 1; overflow-y: auto; padding: 12px 14px; }
+    .group-title {
+      font-size: 12px; font-weight: 700; margin: 10px 0 6px; letter-spacing: .5px;
+    }
+    .g-review  { color: #b37feb; }
+    .g-start   { color: #69b1ff; }
+    .g-decide  { color: #ffc069; }
+    .card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 10px; margin-bottom: 8px;
+    }
+    .card-title { font-size: 13px; line-height: 1.4; margin-bottom: 4px; font-weight: 600; }
+    .card-agent {
+      display: inline-block; font-size: 10px; font-weight: 600; color: #69b1ff;
+      border: 1px solid rgba(105,177,255,.35); border-radius: 4px;
+      padding: 0 4px; margin-right: 5px;
+    }
+    .card-prog { font-size: 10px; color: #69b1ff; font-weight: 400; }
+    .card-note { font-size: 11px; color: #95de64; margin-bottom: 6px; }
+    .card-detail {
+      font-size: 11px; opacity: 0.85; line-height: 1.55;
+      max-height: 160px; overflow-y: auto;
+      background: rgba(0,0,0,0.2); border-radius: 6px; padding: 6px 8px; margin-bottom: 8px;
+    }
+    /* md.js 渲染产物样式 */
+    .card-detail p { margin: 2px 0; }
+    .card-detail .md-h { font-weight: 700; margin: 6px 0 2px; color: #e8e8ea; }
+    .card-detail .md-h1 { font-size: 13px; }
+    .card-detail .md-h2 { font-size: 12px; }
+    .card-detail .md-h3, .card-detail .md-h4 { font-size: 11px; }
+    .card-detail ul, .card-detail ol { padding-left: 18px; margin: 2px 0; }
+    .card-detail li { margin: 1px 0; }
+    .card-detail code {
+      background: rgba(255,255,255,0.1); border-radius: 3px;
+      padding: 0 3px; font-family: Menlo, monospace; font-size: 10px;
+    }
+    .card-detail strong { color: #fff; }
+    .card-input {
+      -webkit-app-region: no-drag;
+      width: 100%; background: rgba(0,0,0,0.25); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 6px; color: #e8e8ea; font-size: 12px; padding: 6px 8px;
+      margin-bottom: 8px; resize: vertical; min-height: 34px; font-family: inherit;
+    }
+    .btns { display: flex; gap: 8px; }
+    .btn {
+      -webkit-app-region: no-drag;
+      flex: 1; border: none; border-radius: 6px; padding: 6px 0;
+      font-size: 12px; cursor: pointer; font-weight: 600;
+    }
+    .btn-ok   { background: #52c41a; color: #fff; }
+    .btn-no   { background: rgba(255,255,255,0.12); color: #e8e8ea; }
+    .btn-ok:hover { background: #73d13d; }
+    .btn-no:hover { background: rgba(255,255,255,0.22); }
+    .empty { text-align: center; opacity: 0.45; font-size: 13px; margin-top: 60px; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <header class="titlebar">
+      <span class="title">📋 待你处理</span>
+      <button class="close-btn" id="btn-close">×</button>
+    </header>
+    <main class="content" id="content">
+      <p class="empty">加载中…</p>
+    </main>
+  </div>
+  <script src="md.js"></script>
+  <script src="review.js"></script>
+</body>
+</html>
