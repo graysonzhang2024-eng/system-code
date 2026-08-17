@@ -22,9 +22,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from . import config
@@ -36,7 +40,10 @@ _CODE_ROOT = Path(__file__).resolve().parent.parent
 _LOCK_NAME = "steward-sync.lock"
 _PENDING_NAME = "steward-sync.pending"
 _LOG_NAME = "steward-sync.log"
+_STATE_NAME = "steward-sync-state.json"
+_VISIBILITY_NAME = "steward-remote-visibility.json"
 _STALE_SECONDS = 120  # 锁超过这个年龄视为僵尸锁,自动破除
+_VISIBILITY_TTL = 6 * 60 * 60
 
 
 def machine_tag() -> str:
@@ -54,6 +61,151 @@ def _enabled(root: Path) -> bool:
         return False
     r = _git(root, "remote")
     return r is not None and "origin" in r.stdout
+
+
+def _remote_url(root: Path) -> str:
+    result = _git(root, "remote", "get-url", "origin")
+    return result.stdout.strip() if result and result.returncode == 0 else ""
+
+
+def _normalized_remote(value: str) -> str:
+    value = value.strip().rstrip("/")
+    return value[:-4] if value.endswith(".git") else value
+
+
+def _vault_guard(root: Path) -> str | None:
+    """Fail closed before staging when root or configured remote is unexpected."""
+    configured = config.get_value("WORK_VAULT_PATH").strip()
+    if not configured:
+        return "work-vault-path-not-configured"
+    try:
+        expected_root = Path(configured).expanduser().resolve(strict=True)
+        actual_root = root.resolve(strict=True)
+    except OSError:
+        return "work-vault-path-unavailable"
+    if actual_root != expected_root or actual_root == _CODE_ROOT.resolve():
+        return "work-vault-root-mismatch"
+    top = _git(root, "rev-parse", "--show-toplevel")
+    if top is None or top.returncode != 0:
+        return "not-a-git-repo"
+    try:
+        if Path(top.stdout.strip()).resolve(strict=True) != actual_root:
+            return "work-vault-git-root-mismatch"
+    except OSError:
+        return "work-vault-git-root-mismatch"
+    expected_remote = config.get_value("WORK_VAULT_EXPECTED_REMOTE").strip()
+    if not expected_remote:
+        local_expected = _git(root, "config", "--local", "--get", "steward.expectedRemote")
+        if local_expected and local_expected.returncode == 0:
+            expected_remote = local_expected.stdout.strip()
+    actual_remote = _remote_url(root)
+    if not expected_remote:
+        return "work-vault-expected-remote-not-configured"
+    if _normalized_remote(actual_remote) != _normalized_remote(expected_remote):
+        return "work-vault-remote-mismatch"
+    return None
+
+
+def _github_repo(remote: str) -> tuple[str, str] | None:
+    match = re.match(r"git@github\.com:([^/]+)/(.+?)(?:\.git)?$", remote)
+    if not match:
+        parsed = urllib.parse.urlparse(remote)
+        if parsed.hostname != "github.com":
+            return None
+        parts = [part for part in parsed.path.strip("/").split("/") if part]
+        if len(parts) != 2:
+            return None
+        return parts[0], parts[1].removesuffix(".git")
+    return match.group(1), match.group(2).removesuffix(".git")
+
+
+def _visibility_cache(root: Path, remote: str) -> bool | None:
+    path = root / ".git" / _VISIBILITY_NAME
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if (data.get("remote") == _normalized_remote(remote)
+                and data.get("private") is True
+                and time.time() - float(data.get("checked_at", 0)) <= _VISIBILITY_TTL):
+            return True
+    except (OSError, ValueError, TypeError):
+        pass
+    return None
+
+
+def _private_remote_verified(root: Path, remote: str) -> tuple[bool, str]:
+    """Require recent authenticated PRIVATE visibility before a network push."""
+    parsed = urllib.parse.urlparse(remote)
+    if parsed.scheme in {"", "file"} and _github_repo(remote) is None:
+        return True, "local-transport"
+    if _visibility_cache(root, remote):
+        return True, "cached-private"
+    repo = _github_repo(remote)
+    if repo is None:
+        return False, "remote-visibility-unsupported"
+    token = config.get_value("WORK_VAULT_GITHUB_TOKEN").strip() or _credential_token(remote)
+    if not token:
+        return False, "remote-visibility-auth-missing"
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo[0]}/{repo[1]}",
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "steward-private-remote-check",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError, urllib.error.URLError):
+        return False, "remote-visibility-check-failed"
+    if payload.get("private") is not True or payload.get("visibility") != "private":
+        return False, "remote-visibility-not-private"
+    cache = {
+        "remote": _normalized_remote(remote),
+        "private": True,
+        "checked_at": time.time(),
+    }
+    try:
+        (root / ".git" / _VISIBILITY_NAME).write_text(
+            json.dumps(cache, sort_keys=True), encoding="utf-8"
+        )
+    except OSError:
+        return False, "remote-visibility-cache-failed"
+    return True, "authenticated-private"
+
+
+def _credential_token(remote: str) -> str:
+    """Read an existing Git credential non-interactively without logging it."""
+    parsed = urllib.parse.urlparse(remote)
+    ssh_prefix = "git" + "@github.com:"
+    host = parsed.hostname or ("github.com" if remote.startswith(ssh_prefix) else "")
+    if not host:
+        return ""
+    try:
+        result = subprocess.run(
+            ["git", "credential", "fill"],
+            input=f"protocol=https\nhost={host}\n\n",
+            capture_output=True, text=True, timeout=5,
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode != 0:
+        return ""
+    values = dict(
+        line.split("=", 1) for line in result.stdout.splitlines() if "=" in line
+    )
+    return values.get("password", "")
+
+
+def _write_state(root: Path, result: dict) -> None:
+    try:
+        (root / ".git" / _STATE_NAME).write_text(
+            json.dumps(result, ensure_ascii=False, sort_keys=True), encoding="utf-8"
+        )
+    except OSError:
+        pass
 
 
 def _git(root: Path, *args: str, timeout: int = 30) -> subprocess.CompletedProcess | None:
@@ -78,7 +230,7 @@ def commit_all(msg: str) -> bool:
     - 历史里一眼分清"系统自动提交"和"人的手动提交"
     """
     root = _vault_root()
-    if not _enabled(root):
+    if not _enabled(root) or _vault_guard(root) is not None:
         return False
     _git(root, "add", "-A")
     # 暂存区为空 = 没改动,不制造空提交
@@ -92,16 +244,58 @@ def commit_all(msg: str) -> bool:
     return r is not None and r.returncode == 0
 
 
+def commit_personal(msg: str) -> bool:
+    """Commit personal-vault locally; never fetch, merge, or push it."""
+    if (detect_machine() != "personal" or config.get_choice(
+            "PERSONAL_VAULT_ROUTING", {"enabled", "disabled"}, "disabled"
+    ) != "enabled"):
+        return False
+    configured = config.get_value("PERSONAL_VAULT_PATH").strip()
+    if not configured:
+        return False
+    try:
+        root = Path(configured).expanduser().resolve(strict=True)
+    except OSError:
+        return False
+    if root == _vault_root().expanduser().resolve() or not (root / ".git").exists():
+        return False
+    top = _git(root, "rev-parse", "--show-toplevel")
+    if top is None or top.returncode != 0:
+        return False
+    try:
+        if Path(top.stdout.strip()).resolve(strict=True) != root:
+            return False
+    except OSError:
+        return False
+    _git(root, "add", "-A")
+    diff = _git(root, "diff", "--cached", "--quiet")
+    if diff is not None and diff.returncode == 0:
+        return False
+    result = _git(
+        root,
+        "-c", "user.name=steward-personal",
+        "-c", "user.email=steward-personal@local",
+        "commit", "-m", msg,
+    )
+    return result is not None and result.returncode == 0
+
+
 # ============================================================
 # 第二步:后台同步一轮(fetch → merge → push,冲突保双份)
 # ============================================================
 def sync_now() -> dict:
     """同步一轮。返回结果字典(也供浮窗 os_api 调用)。绝不抛异常。"""
     result = {"committed": False, "merged": False, "pushed": False,
-              "conflicts": [], "error": None}
+              "conflicts": [], "error": None, "visibility": "unchecked"}
     root = _vault_root()
     if not _enabled(root):
         result["error"] = "not-a-git-repo"
+        _write_state(root, result)
+        return result
+    guard_error = _vault_guard(root)
+    if guard_error:
+        result["error"] = guard_error
+        _write_state(root, result)
         return result
     try:
         # 先把本地未提交的改动收进历史(比如后台进程跑时 UI 又勾了几下)
@@ -110,6 +304,7 @@ def sync_now() -> dict:
         fetch = _git(root, "fetch", "origin", timeout=45)
         if fetch is None or fetch.returncode != 0:
             result["error"] = "fetch-failed(可能断网)"
+            _write_state(root, result)
             return result
 
         branch_r = _git(root, "rev-parse", "--abbrev-ref", "HEAD")
@@ -129,21 +324,30 @@ def sync_now() -> dict:
                          "-c", f"user.name=steward-{machine_tag()}",
                          "-c", f"user.email=steward-{machine_tag()}@local",
                          "merge", "--no-edit", f"origin/{branch}")
-            if merge is not None and merge.returncode != 0:
+            if merge is None or merge.returncode != 0:
                 if (root / ".git" / "MERGE_HEAD").exists():
                     # 真冲突:本机版留正本,对方版存 .conflict-<sha> 副本,完成 merge
                     result["conflicts"] = _resolve_conflicts_keep_both(root)
                 else:
-                    result["error"] = f"merge-failed: {(merge.stderr or '')[:200]}"
+                    detail = (merge.stderr or "")[:200] if merge is not None else "git unavailable"
+                    result["error"] = f"merge-failed: {detail}"
+                    _write_state(root, result)
                     return result
             result["merged"] = True
 
+        verified, visibility = _private_remote_verified(root, _remote_url(root))
+        result["visibility"] = visibility
+        if not verified:
+            result["error"] = visibility
+            _write_state(root, result)
+            return result
         push = _git(root, "push", "origin", f"HEAD:{branch}", timeout=45)
         result["pushed"] = push is not None and push.returncode == 0
         if not result["pushed"]:
             result["error"] = "push-failed(可能断网,下轮补)"
     except Exception as e:  # 双保险:同步层任何意外都不能炸到调用方
         result["error"] = str(e)
+    _write_state(root, result)
     return result
 
 
@@ -305,6 +509,18 @@ def list_conflicts() -> list[str]:
             continue
         out.append(str(p.relative_to(root)))
     return sorted(out)
+
+
+def sync_health() -> dict:
+    """Return persistent sync warning state for the floating window."""
+    root = _vault_root()
+    state = root / ".git" / _STATE_NAME
+    try:
+        data = json.loads(state.read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        data = {"error": None, "visibility": "unchecked"}
+    data["conflicts"] = list_conflicts()
+    return data
 
 
 def main() -> None:

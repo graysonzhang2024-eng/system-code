@@ -812,15 +812,19 @@ async function boot() {
   updateSyncBanner();
 }
 
-// 同步冲突红条:另一台机改了同一条记录(merge 保双份),提醒人工合并
+// 同步安全红条:冲突或远端隐私门禁暂停网络 push 时提醒
 async function updateSyncBanner() {
   const el = document.getElementById("sync-banner");
   if (!el) return;
   try {
-    const res = await window.steward.api("list_conflicts", {});
-    const files = (res && res.ok && res.data) || [];
+    const res = await window.steward.api("sync_health", {});
+    const state = (res && res.ok && res.data) || {};
+    const files = state.conflicts || [];
     if (files.length > 0) {
       el.textContent = `⚠️ ${files.length} 个同步冲突待合并:另一台机改动了同一条记录,已保双份(见 .conflict- 副本)`;
+      el.style.display = "block";
+    } else if (state.error && state.error !== "not-a-git-repo") {
+      el.textContent = `🔒 私有数据网络同步已暂停：${state.error}。本地记录仍会保留。`;
       el.style.display = "block";
     } else {
       el.style.display = "none";

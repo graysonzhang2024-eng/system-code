@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+repo=$(git rev-parse --show-toplevel)
+denylist=$(git config --path --get privacy.denylistFile || true)
+if [ -z "$denylist" ]; then
+  echo "privacy gate: privacy.denylistFile is not configured" >&2
+  exit 1
+fi
+
+set -- --repo "$repo" --staged --check-identity \
+  --denylist-file "$denylist" --require-denylist
+if git rev-parse --verify HEAD >/dev/null 2>&1; then
+  set -- "$@" --ref HEAD
+else
+  set -- "$@" --ref --branches
+fi
+exec python3 "$repo/scripts/privacy_scan.py" "$@"

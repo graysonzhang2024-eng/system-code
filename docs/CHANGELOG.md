@@ -1,5 +1,14 @@
 # Changelog
 
+## Persistent privacy publication and sync gates
+
+- Added staged-snapshot and multi-ref history scanning with repository-local pre-commit and pre-push hooks.
+- Added machine-specific, idempotent guard installation: development machines may publish only with an external
+  denylist, while read-only machines retain fetch access but have no usable push transport.
+- Bound private-vault synchronization to its configured root and expected remote, and require recent authenticated
+  private visibility before network push; local commits remain available when the network gate pauses.
+- Added opt-in physical routing for personal categories without silently migrating existing records.
+
 本文件只记录适合公开的匿名功能里程碑。原始开发过程、真实任务编号、部署账号、业务项目和
 个人事件属于私有开发史，不进入公开仓库。
 

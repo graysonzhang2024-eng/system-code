@@ -40,6 +40,7 @@ class TestDualMachineIds(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
         os.environ.pop("WORK_VAULT_PATH", None)
+        os.environ.pop("WORK_VAULT_EXPECTED_REMOTE", None)
         os.environ.pop("MACHINE_ID", None)
 
     def test_new_id_has_machine_suffix(self):
@@ -109,11 +110,38 @@ class TestSyncConflict(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
         os.environ.pop("WORK_VAULT_PATH", None)
+        os.environ.pop("WORK_VAULT_EXPECTED_REMOTE", None)
         os.environ.pop("MACHINE_ID", None)
 
     def _use(self, machine_dir: Path, machine: str) -> None:
         os.environ["WORK_VAULT_PATH"] = str(machine_dir)
+        os.environ["WORK_VAULT_EXPECTED_REMOTE"] = str(self.remote)
         os.environ["MACHINE_ID"] = machine
+
+    def test_remote_mismatch_fails_before_staging(self):
+        self._use(self.a, "work")
+        self._write_task(self.a, "todo")
+        os.environ["WORK_VAULT_EXPECTED_REMOTE"] = str(self.remote) + "-other"
+        result = sync.sync_now()
+        self.assertEqual(result["error"], "work-vault-remote-mismatch")
+        staged = _git(self.a, "diff", "--cached", "--name-only").stdout
+        self.assertEqual(staged, "")
+
+    def test_private_visibility_failure_keeps_local_commit(self):
+        self._use(self.a, "work")
+        self._write_task(self.a, "todo")
+        original = sync._private_remote_verified
+        sync._private_remote_verified = lambda root, remote: (
+            False, "remote-visibility-auth-missing"
+        )
+        try:
+            result = sync.sync_now()
+        finally:
+            sync._private_remote_verified = original
+        self.assertTrue(result["committed"])
+        self.assertFalse(result["pushed"])
+        self.assertEqual(result["error"], "remote-visibility-auth-missing")
+        self.assertEqual(_git(self.a, "status", "--porcelain").stdout, "")
 
     def _write_task(self, root: Path, status: str) -> None:
         (root / "task").mkdir(exist_ok=True)

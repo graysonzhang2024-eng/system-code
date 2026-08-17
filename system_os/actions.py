@@ -37,14 +37,15 @@ from .schema_work import (
     validate_task,
     validate_worklog,
 )
+from .routed_vault import RoutedVault
 from .vault import Vault
 
 
 # ============================================================
 # 内部工具
 # ============================================================
-def _work_vault() -> Vault:
-    return Vault(config.work_vault_path())
+def _work_vault() -> RoutedVault:
+    return RoutedVault()
 
 
 _BEIJING = _dt.timezone(_dt.timedelta(hours=8))
@@ -103,6 +104,7 @@ def _sync_after(msg: str) -> None:
     try:
         if sync.commit_all(f"auto({sync.machine_tag()}): {msg}"):
             sync.push_detached()
+        sync.commit_personal(f"auto({sync.machine_tag()}): {msg}")
     except Exception:
         pass
 

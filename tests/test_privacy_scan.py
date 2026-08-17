@@ -85,6 +85,48 @@ class TestPrivacyHistory(unittest.TestCase):
         rules = {item.rule for item in privacy_scan.run(self.repo, "HEAD", None, False)}
         self.assertIn("COMMIT_EMAIL_NOT_NOREPLY", rules)
 
+    def test_staged_scan_reads_index_not_unstaged_worktree(self):
+        self._commit("README.md", b"anonymous fixture\n")
+        path = self.repo / "README.md"
+        path.write_bytes(b"/Users/" + b"staged-user/project\n")
+        _git(self.repo, "add", "README.md")
+        path.write_bytes(b"anonymous unstaged replacement\n")
+        rules = {
+            item.rule for item in privacy_scan.run(
+                self.repo, "HEAD", None, False, staged=True
+            )
+        }
+        self.assertIn("HOME_PATH", rules)
+
+    def test_active_repository_identity_is_checked(self):
+        self._commit("README.md", b"anonymous fixture\n")
+        _git(self.repo, "config", "user.email", "person@example.com")
+        rules = {
+            item.rule for item in privacy_scan.run(
+                self.repo, "HEAD", None, False, check_identity=True
+            )
+        }
+        self.assertIn("CONFIG_EMAIL_NOT_NOREPLY", rules)
+
+    def test_multiple_push_refs_are_scanned(self):
+        self._commit("README.md", b"anonymous fixture\n")
+        safe = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        _git(self.repo, "checkout", "-q", "-b", "private-branch")
+        self._commit("private.txt", b"/Users/" + b"branch-user/project")
+        private = subprocess.run(
+            ["git", "-C", str(self.repo), "rev-parse", "HEAD"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        rules = {
+            item.rule for item in privacy_scan.run(
+                self.repo, [safe, private], None, False
+            )
+        }
+        self.assertIn("HOME_PATH", rules)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

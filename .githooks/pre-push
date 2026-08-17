@@ -1,0 +1,36 @@
+#!/bin/sh
+set -eu
+
+remote_name=${1:-}
+remote_url=${2:-}
+repo=$(git rev-parse --show-toplevel)
+denylist=$(git config --path --get privacy.denylistFile || true)
+allowed=$(git config --bool --get privacy.pushAllowed || true)
+expected=$(git config --get privacy.publicRemote || true)
+
+if [ "$allowed" != "true" ]; then
+  echo "privacy gate: this machine is not allowed to publish system-code" >&2
+  exit 1
+fi
+if [ -z "$denylist" ]; then
+  echo "privacy gate: privacy.denylistFile is not configured" >&2
+  exit 1
+fi
+if [ -z "$expected" ] || [ "$remote_url" != "$expected" ]; then
+  echo "privacy gate: push remote does not match privacy.publicRemote" >&2
+  exit 1
+fi
+
+refs=""
+zero=0000000000000000000000000000000000000000
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -n "${local_sha:-}" ] || continue
+  [ "$local_sha" = "$zero" ] && continue
+  refs="$refs --ref $local_sha"
+done
+[ -n "$refs" ] || exit 0
+
+# Re-parse the internally generated list of hexadecimal object ids only.
+# shellcheck disable=SC2086
+exec python3 "$repo/scripts/privacy_scan.py" --repo "$repo" \
+  --denylist-file "$denylist" --require-denylist --history-only $refs

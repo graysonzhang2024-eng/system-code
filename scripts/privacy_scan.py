@@ -172,8 +172,31 @@ def _scan_worktree(repo: Path, terms: list[bytes]) -> list[Finding]:
     return findings
 
 
-def _scan_history(repo: Path, ref: str, terms: list[bytes]) -> list[Finding]:
-    commits = [item for item in _git(repo, "rev-list", ref).splitlines() if item]
+def _scan_index(repo: Path, terms: list[bytes]) -> list[Finding]:
+    """Scan the exact staged snapshot without reading unstaged files."""
+    entries = _git(repo, "ls-files", "--stage", "-z").split(b"\0")
+    findings: list[Finding] = []
+    for item in entries:
+        if not item:
+            continue
+        meta, raw_path = item.split(b"\t", 1)
+        mode, oid, stage = meta.split(b" ", 2)
+        if stage != b"0":
+            raise RuntimeError("index contains unresolved merge entries")
+        relative = raw_path.decode("utf-8", "surrogateescape")
+        source = _safe_source(f"index:{relative}", terms)
+        findings.extend(scan_bytes(source, raw_path, terms))
+        data = _git(repo, "cat-file", "blob", oid.decode("ascii"))
+        if len(data) > MAX_BLOB_BYTES:
+            raise RuntimeError(f"staged blob exceeds scan limit: {source}")
+        findings.extend(scan_bytes(source, data, terms))
+    return findings
+
+
+def _scan_history(repo: Path, refs: list[str], terms: list[bytes]) -> list[Finding]:
+    if not refs:
+        return []
+    commits = [item for item in _git(repo, "rev-list", *refs).splitlines() if item]
     findings: list[Finding] = []
     seen_blobs: set[bytes] = set()
     for raw_sha in commits:
@@ -213,7 +236,27 @@ def _scan_history(repo: Path, ref: str, terms: list[bytes]) -> list[Finding]:
     return findings
 
 
-def run(repo: Path, ref: str, denylist: Path | None, required: bool) -> list[Finding]:
+def _identity_findings(repo: Path) -> list[Finding]:
+    identity = _git(repo, "var", "GIT_AUTHOR_IDENT").decode("utf-8", "replace")
+    match = re.search(r"<([^<>]+)>", identity)
+    if match and match.group(1).lower().endswith("@users.noreply.github.com"):
+        return []
+    return [Finding(
+        "config:user.email", 1, 1, "CONFIG_EMAIL_NOT_NOREPLY",
+        "public repository identity must use GitHub noreply email",
+    )]
+
+
+def run(
+    repo: Path,
+    ref: str | list[str],
+    denylist: Path | None,
+    required: bool,
+    *,
+    staged: bool = False,
+    check_identity: bool = False,
+    history_only: bool = False,
+) -> list[Finding]:
     repo = repo.resolve()
     _git(repo, "rev-parse", "--show-toplevel")
     terms = _load_denylist(denylist, required)
@@ -229,21 +272,37 @@ def run(repo: Path, ref: str, denylist: Path | None, required: bool) -> list[Fin
             }
             if str(relative) in tracked:
                 raise RuntimeError("private denylist must not be tracked")
-    return sorted(set(_scan_worktree(repo, terms) + _scan_history(repo, ref, terms)))
+    refs = [ref] if isinstance(ref, str) else list(ref)
+    snapshot = [] if history_only else (
+        _scan_index(repo, terms) if staged else _scan_worktree(repo, terms)
+    )
+    identity = _identity_findings(repo) if check_identity else []
+    return sorted(set(snapshot + _scan_history(repo, refs, terms) + identity))
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=Path.cwd())
-    parser.add_argument("--ref", default="HEAD")
+    parser.add_argument("--ref", action="append", dest="refs")
     parser.add_argument("--denylist-file", type=Path)
     parser.add_argument("--require-denylist", action="store_true")
+    parser.add_argument("--staged", action="store_true",
+                        help="scan the Git index instead of the working tree")
+    parser.add_argument("--check-identity", action="store_true",
+                        help="require the active repository email to be GitHub noreply")
+    parser.add_argument("--history-only", action="store_true",
+                        help="scan only commits reachable from the supplied refs")
     args = parser.parse_args(argv)
     denylist = args.denylist_file
     if denylist is None and os.environ.get("SYSTEM_CODE_PRIVACY_DENYLIST_FILE"):
         denylist = Path(os.environ["SYSTEM_CODE_PRIVACY_DENYLIST_FILE"])
     try:
-        findings = run(args.repo, args.ref, denylist, args.require_denylist)
+        findings = run(
+            args.repo, args.refs if args.refs is not None else ["HEAD"],
+            denylist, args.require_denylist,
+            staged=args.staged, check_identity=args.check_identity,
+            history_only=args.history_only,
+        )
     except (OSError, RuntimeError, ValueError) as exc:
         print(f"privacy scan failed: {exc}", file=sys.stderr)
         return 2

@@ -246,6 +246,9 @@ def _run(cmd: str, arg: dict) -> dict:
     if cmd == "list_conflicts":
         # 冲突副本列表(非空 → 浮窗亮红条提醒人工合并)
         return {"ok": True, "data": sync.list_conflicts()}
+    if cmd == "sync_health":
+        # 冲突 + 持久化同步门禁状态(远端未验证时浮窗亮高优先级提示)
+        return {"ok": True, "data": sync.sync_health()}
     return {"ok": False, "error": f"未知命令:{cmd}"}
 
 

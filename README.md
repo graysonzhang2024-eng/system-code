@@ -124,6 +124,9 @@ system-code/
 
 ## 快速验证
 
+持久隐私门禁、工作机只拉取安装和私仓绑定步骤见
+[`docs/隐私同步与发布.md`](docs/隐私同步与发布.md)。
+
 ```bash
 git clone <system-code-remote> system-code
 cd system-code
