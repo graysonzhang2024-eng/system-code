@@ -34,10 +34,15 @@ def exact_root(root: Path) -> Path:
 def install_work(root: Path) -> None:
     root = exact_root(root)
     remote = git(root, "remote", "get-url", "origin")
+    # Binding the observed remote is safe before visibility succeeds: it enables
+    # local commits, while sync.py still refuses every network push until the
+    # separate authenticated PRIVATE check passes.
+    git(root, "config", "--local", "steward.expectedRemote", remote)
     verified, reason = sync._private_remote_verified(root, remote)
     if not verified:
-        raise RuntimeError(f"remote is not authenticated PRIVATE: {reason}")
-    git(root, "config", "--local", "steward.expectedRemote", remote)
+        raise RuntimeError(
+            f"remote bound for local commits; network push remains paused: {reason}"
+        )
     print("work-vault is bound to an authenticated private remote")
 
 
